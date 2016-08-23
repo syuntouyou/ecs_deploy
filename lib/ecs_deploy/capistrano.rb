@@ -28,6 +28,7 @@ namespace :ecs do
             task_definition_name: t[:name],
             container_definitions: t[:container_definitions],
             task_role_arn: t[:task_role_arn],
+            network_mode: t[:network_mode],
             volumes: t[:volumes]
           )
           task_definition.register
