@@ -16,7 +16,8 @@ module EcsDeploy
       @desired_count = desired_count
       @deployment_configuration = deployment_configuration
       @revision = revision
-      @load_balancers = Array(load_balancers)
+      load_balancers = [load_balancers] if load_balancers.is_a?(Hash)
+      @load_balancers = load_balancers
       @region = region || EcsDeploy.config.default_region || ENV["AWS_DEFAULT_REGION"]
       @response = nil
 
