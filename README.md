@@ -96,10 +96,12 @@ set :ecs_tasks, [
 set :ecs_services, [
   {
     name: "myapp-#{fetch(:rails_env)}",
-    elb_name: "service-elb-name",
-    elb_service_port: 443,
-    elb_healthcheck_port: 443,
-    elb_container_name: "nginx",
+    load_balancers: {
+      load_balancer_name: "app",
+      container_name: "nginx",
+      container_port: 443,
+      target_group_arn: fetch(:target_group_arn),
+    },
     desired_count: 1,
     deployment_configuration: {maximum_percent: 200, minimum_healthy_percent: 50},
   },
