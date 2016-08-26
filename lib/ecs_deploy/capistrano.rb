@@ -123,7 +123,7 @@ namespace :ecs do
             cluster: service[:cluster] || fetch(:ecs_default_cluster),
             service_name: service[:name],
             task_definition_name: rollback_arn,
-            load_balancers: service[:load_balancers]
+            load_balancers: service[:load_balancers],
             desired_count: service[:desired_count],
           }
           service_options[:deployment_configuration] = service[:deployment_configuration] if service[:deployment_configuration]
