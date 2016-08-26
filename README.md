@@ -34,78 +34,85 @@ set :ecs_region, %w(ap-northeast-1) # optional, if nil, use environment variable
 set :ecs_service_role, "customEcsServiceRole" # default: ecsServiceRole
 set :ecs_deploy_wait_timeout, 600 # default: 300
 
-set :ecs_tasks, [
-  {
-    name: "myapp-#{fetch(:rails_env)}",
-    container_definitions: [
-      {
-        name: "myapp",
-        image: "#{fetch(:docker_registry_host_with_port)}/myapp:#{fetch(:sha1)}",
-        cpu: 1024,
-        memory: 512,
-        port_mappings: [],
-        essential: true,
-        environment: [
-          {name: "RAILS_ENV", value: fetch(:rails_env)},
-        ],
-        mount_points: [
-          {
-            source_volume: "sockets_path",
-            container_path: "/app/tmp/sockets",
-            read_only: false,
-          },
-        ],
-        volumes_from: [],
-        log_configuration: {
-          log_driver: "fluentd",
-          options: {
-            "tag" => "docker.#{fetch(:rails_env)}.#{name}.{{.ID}}",
-          },
-        },
-      },
-      {
-        name: "nginx",
-        image: "#{fetch(:docker_registry_host_with_port)}/my-nginx",
-        cpu: 256,
-        memory: 256,
-        links: [],
-        port_mappings: [
-          {container_port: 443, host_port: 443, protocol: "tcp"},
-        ],
-        essential: true,
-        environment: {},
-        mount_points: [],
-        volumes_from: [
-          {source_container: "myapp-#{fetch(:rails_env)}", read_only: false},
-        ],
-        log_configuration: {
-          log_driver: "fluentd",
-          options: {
-            "tag" => "docker.#{fetch(:rails_env)}.#{name}.{{.ID}}",
+set :ecs_tasks, lambda {
+  [
+    {
+      name: "myapp-#{fetch(:rails_env)}",
+      container_definitions: [
+        {
+          name: "myapp",
+          image: "#{fetch(:docker_registry_host_with_port)}/myapp:#{fetch(:sha1)}",
+          cpu: 1024,
+          memory: 512,
+          port_mappings: [],
+          essential: true,
+          environment: [
+            {name: "RAILS_ENV", value: fetch(:rails_env)},
+          ],
+          mount_points: [
+            {
+              source_volume: "sockets_path",
+              container_path: "/app/tmp/sockets",
+              read_only: false,
+            },
+          ],
+          volumes_from: [],
+          log_configuration: {
+            log_driver: "fluentd",
+            options: {
+              "tag" => "docker.#{fetch(:rails_env)}.#{name}.{{.ID}}",
+            },
           },
         },
-      }
-    ],
-    volumes: [{name: "sockets_path", host: {}}],
-    executions: [ # execution task on deploy timing
-      {container_overrides: [{name: "myapp", command: ["db_migrate"]}]},
-    ]
-  },
-]
-
-set :ecs_services, [
-  {
-    name: "myapp-#{fetch(:rails_env)}",
-    load_balancers: {
-      load_balancer_name: "app",
-      container_name: "nginx",
-      container_port: 443,
-      target_group_arn: fetch(:target_group_arn),
+        {
+          name: "nginx",
+          image: "#{fetch(:docker_registry_host_with_port)}/my-nginx",
+          cpu: 256,
+          memory: 256,
+          links: [],
+          port_mappings: [
+            {container_port: 443, host_port: 443, protocol: "tcp"},
+          ],
+          essential: true,
+          environment: {},
+          mount_points: [],
+          volumes_from: [
+            {source_container: "myapp-#{fetch(:rails_env)}", read_only: false},
+          ],
+          log_configuration: {
+            log_driver: "fluentd",
+            options: {
+              "tag" => "docker.#{fetch(:rails_env)}.#{name}.{{.ID}}",
+            },
+          },
+        }
+      ],
+      volumes: [{name: "sockets_path", host: {}}],
+      executions: [ # execution task on deploy timing
+        {
+         container_overrides: [{name: "myapp", command: ["db_migrate"]}],
+         wait_stop: 'myapp'
+        },
+      ]
     },
-    desired_count: 1,
-    deployment_configuration: {maximum_percent: 200, minimum_healthy_percent: 50},
-  },
-]
+  ]
+}
+
+set :ecs_services, lambda {
+  [
+    {
+      name: "myapp-#{fetch(:rails_env)}",
+      load_balancers: {
+        load_balancer_name: "app",
+        container_name: "nginx",
+        container_port: 443,
+        target_group_arn: fetch(:target_group_arn),
+      },
+      desired_count: 1,
+      deployment_configuration: {maximum_percent: 200, minimum_healthy_percent: 50},
+    },
+  ]
+}
 ```
 
 ```sh
