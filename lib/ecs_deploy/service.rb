@@ -6,21 +6,17 @@ module EcsDeploy
     attr_reader :cluster, :region, :service_name
 
     def initialize(
-      cluster:, service_name:, task_definition_name: nil, revision: nil,
-      elb_name: nil, elb_service_port: nil, elb_healthcheck_port: nil, elb_container_name: nil,
+      cluster:, service_name:, task_definition_name: nil, revision: nil,load_balancers: [],
       desired_count: nil, deployment_configuration: {maximum_percent: 200, minimum_healthy_percent: 100},
       region: nil
     )
       @cluster = cluster
       @service_name = service_name
       @task_definition_name = task_definition_name || service_name
-      @elb_name = elb_name
-      @elb_service_port = elb_service_port
-      @elb_healthcheck_port = elb_healthcheck_port
-      @elb_container_name = elb_container_name
       @desired_count = desired_count
       @deployment_configuration = deployment_configuration
       @revision = revision
+      @load_balancers = Array(load_balancers)
       @region = region || EcsDeploy.config.default_region || ENV["AWS_DEFAULT_REGION"]
       @response = nil
 
@@ -44,16 +40,10 @@ module EcsDeploy
           service_name: @service_name,
           desired_count: @desired_count.to_i,
         })
-        if @elb_name
+        unless  @load_balancers.empty?
           service_options.merge!({
             role: EcsDeploy.config.ecs_service_role,
-            load_balancers: [
-              {
-                load_balancer_name: @elb_name,
-                container_name: @elb_container_name,
-                container_port: @elb_service_port,
-              }
-            ],
+            load_balancers: @load_balancers
           })
         end
         @response = @client.create_service(service_options)
