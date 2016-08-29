@@ -41,7 +41,7 @@ module EcsDeploy
           service_name: @service_name,
           desired_count: @desired_count.to_i,
         })
-        unless  @load_balancers.empty?
+        if @load_balancers && !@load_balancers.empty?
           service_options.merge!({
             role: EcsDeploy.config.ecs_service_role,
             load_balancers: @load_balancers
