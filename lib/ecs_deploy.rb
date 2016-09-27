@@ -27,3 +27,5 @@ end
 
 require "ecs_deploy/task_definition"
 require "ecs_deploy/service"
+require "ecs_deploy/region_strategy"
+require "ecs_deploy/strategy"

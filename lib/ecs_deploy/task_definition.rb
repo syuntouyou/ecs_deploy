@@ -1,7 +1,8 @@
 module EcsDeploy
   class TaskDefinition
-    def self.deregister(arn, region: nil)
-      region = region || EcsDeploy.config.default_region || ENV["AWS_DEFAULT_REGION"]
+
+    attr_reader :task_definition_name,:task_role_arn
+    def self.deregister(arn, region)
       client = Aws::ECS::Client.new(region: region)
       client.deregister_task_definition({
         task_definition: arn,
@@ -9,16 +10,28 @@ module EcsDeploy
       EcsDeploy.logger.info "deregister task definition [#{arn}] [#{region}] [#{Paint['OK', :green]}]"
     end
 
+    def logger
+      EcsDeploy.logger
+    end
+
+    def clean
+
+    end
+
+
     def initialize(
-      task_definition_name:, region: nil,
+      task_definition_name:,
+      region: nil,
       network_mode: nil,
       volumes: [], container_definitions: [],
-      task_role_arn: nil
+      task_role_arn: nil,
+      executions: []
     )
       @task_definition_name = task_definition_name
       @task_role_arn        = task_role_arn
       @network_mode         = network_mode
-      @region = region || EcsDeploy.config.default_region || ENV["AWS_DEFAULT_REGION"]
+      @region               = region
+      @executions           = executions
 
       @container_definitions = container_definitions.map do |cd|
         if cd[:docker_labels]
@@ -30,12 +43,59 @@ module EcsDeploy
         cd
       end
       @volumes = volumes
-
-      @client = Aws::ECS::Client.new(region: @region)
+      @awslog_clients = {}
     end
 
+    def registered?
+      @registered
+    end
+
+    def executions
+      Array(@executions)
+    end
+
+    def client
+      @client ||= ::Aws::ECS::Client.new(region: @region)
+    end
+
+    def has_execution?
+      !executions.empty?
+    end
+
+    def wait_until(waiter_name,options={})
+      client.wait_until(waiter_name, options) do |w|
+        w.before_wait do |attemptss, response|
+        end
+      end
+    end
+
+    def newer_task_definition_arns(current_task_definition_arn)
+      task_definition_arns = self.recent_task_definition_arns
+
+      current_arn_index = task_definition_arns.index do |arn|
+        arn == current_task_definition_arn
+      end
+      return [] unless current_arn_index
+
+      task_definition_arns[0...current_arn_index]
+    end
+
+
+    def rollback_task_definition_arns(current_task_definition_arn,rollback_step)
+
+      task_definition_arns = self.recent_task_definition_arns
+
+      current_arn_index = task_definition_arns.index do |arn|
+        arn == current_task_definition_arn
+      end
+
+      rollback_arn_index = current_arn_index + rollback_step
+      task_definition_arns[current_arn_index...rollback_arn_index]
+    end
+
+
     def recent_task_definition_arns
-      resp = @client.list_task_definitions(
+      resp = client.list_task_definitions(
         family_prefix: @task_definition_name,
         sort: "DESC"
       )
@@ -45,24 +105,61 @@ module EcsDeploy
     end
 
     def register
-      @client.register_task_definition({
+      client.register_task_definition({
         family: @task_definition_name,
         container_definitions: @container_definitions,
         volumes: @volumes,
         task_role_arn: @task_role_arn,
         network_mode: @network_mode,
       })
-      EcsDeploy.logger.info "register task definition [#{@task_definition_name}] [#{@region}] [#{Paint['OK', :green]}]"
+      logger.info "register task definition [#{@task_definition_name}] [#{@region}] [#{Paint['OK', :green]}]"
+      @registered = true
+    end
+
+    def has_stream_prefix?(name)
+      options = awslogs_options_for(name)
+      options["awslogs-stream-prefix"]
+    end
+
+    def awslogs_options_for(name)
+      container_definition = @container_definitions.find{|c|  c[:name] == name}
+      return unless container_definition
+      log_configuration = container_definition[:log_configuration]
+      return unless  log_configuration && log_configuration[:log_driver] == 'awslogs'
+      log_configuration[:options]
+    end
+
+    def awslog_client(region)
+      @awslog_clients[region] ||= Aws::CloudWatchLogs::Client.new(region:region)
+    end
+
+    def get_log_events(container, next_token=nil)
+      name = container.name
+      options = awslogs_options_for(name)
+      return unless options
+      logclient = awslog_client(options["awslogs-region"])
+      task_id = container.task_arn.split('/').last
+      stream = "#{options["awslogs-stream-prefix"]}/#{name}/#{task_id}"
+      response = logclient.get_log_events(
+        log_group_name:  options["awslogs-group"],
+        log_stream_name: stream,
+        next_token: next_token,
+      )
+      response.events.map do |e|
+        logger.info("[#{container.name}] [#{Time.at(e.timestamp/1000)}] #{e.message}")
+      end
+    rescue Aws::CloudWatchLogs::Errors::ResourceNotFoundException => e
+      logger.warn("#{stream} does not exixs.")
     end
 
     def run(info)
-      resp = @client.run_task({
-        cluster: info[:cluster],
+      resp = client.run_task({
+        cluster:         info[:cluster],
         task_definition: @task_definition_name,
         overrides: {
           container_overrides: info[:container_overrides] || []
         },
-        count: info[:count] || 1,
+        count:       info[:count] || 1,
         started_by: "capistrano",
       })
       unless resp.failures.empty?
@@ -72,23 +169,43 @@ module EcsDeploy
       end
 
       wait_targets = Array(info[:wait_stop])
+      failed = false
       unless wait_targets.empty?
-        @client.wait_until(:tasks_running, cluster: info[:cluster], tasks: resp.tasks.map { |t| t.task_arn })
-        @client.wait_until(:tasks_stopped, cluster: info[:cluster], tasks: resp.tasks.map { |t| t.task_arn })
+        task_arns = resp.tasks.map { |t| t.task_arn }
 
-        resp = @client.describe_tasks(cluster: info[:cluster], tasks: resp.tasks.map { |t| t.task_arn })
+        options = { cluster: info[:cluster], tasks: task_arns }
+        begin
+          wait_until(:tasks_running, options)
+          wait_until(:tasks_stopped, options)
+        rescue  Aws::Waiters::Errors::FailureStateError => e
+          failed = e
+        end
+
+        resp = client.describe_tasks(options)
+
         resp.tasks.each do |t|
           t.containers.each do |c|
+            if has_stream_prefix?(c.name)
+              get_log_events(c)
+            end
             next unless wait_targets.include?(c.name)
 
-            unless c.exit_code.zero?
-              raise "Task has errors: #{c.reason}"
+            unless c.exit_code && c.exit_code.zero?
+              if c.reason
+                raise "Conatiner (\"#{c.name}\" container in \"#{@task_definition_name}\" task) has errors: #{c.reason}"
+              else
+                raise "Conatiner (\"#{c.name}\" container in \"#{@task_definition_name}\" task) has errors: Exit: #{c.exit_code}"
+              end
             end
           end
         end
       end
 
-      EcsDeploy.logger.info "run task [#{@task_definition_name} #{info.inspect}] [#{@region}] [#{Paint['OK', :green]}]"
+      if failed
+        raise e
+      end
+
+      logger.info "run task [#{@task_definition_name} #{info.inspect}] [#{@region}] [#{Paint['OK', :green]}]"
     end
   end
 end

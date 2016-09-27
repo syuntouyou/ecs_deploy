@@ -2,15 +2,15 @@ require 'timeout'
 
 module EcsDeploy
   class Service
-    CHECK_INTERVAL = 5
-    attr_reader :cluster, :region, :service_name
+    attr_accessor :cluster, :region, :service_name,:task_definition_name,:revision
 
     def initialize(
       cluster:, service_name:, task_definition_name: nil, revision: nil,load_balancers: [],
       desired_count: nil, deployment_configuration: {maximum_percent: 200, minimum_healthy_percent: 100},
-      region: nil
+      region: nil,service_role:
     )
       @cluster = cluster
+      @service_roel = service_role
       @service_name = service_name
       @task_definition_name = task_definition_name || service_name
       @desired_count = desired_count
@@ -18,19 +18,30 @@ module EcsDeploy
       @revision = revision
       load_balancers = [load_balancers] if load_balancers.is_a?(Hash)
       @load_balancers = load_balancers
-      @region = region || EcsDeploy.config.default_region || ENV["AWS_DEFAULT_REGION"]
+      @region = region
       @response = nil
 
-      @client = Aws::ECS::Client.new(region: @region)
+    end
+
+    def client
+      @client ||= Aws::ECS::Client.new(region: @region)
+    end
+
+    def logger
+      EcsDeploy.logger
     end
 
     def current_task_definition_arn
-      res = @client.describe_services(cluster: @cluster, services: [@service_name])
+      res = client.describe_services(cluster: @cluster, services: [@service_name])
       res.services[0].task_definition
     end
 
+    def default_servcie_role
+      EcsDeploy.config.ecs_service_role
+    end
+
     def deploy
-      res = @client.describe_services(cluster: @cluster, services: [@service_name])
+      res = client.describe_services(cluster: @cluster, services: [@service_name])
       service_options = {
         cluster: @cluster,
         task_definition: task_definition_name_with_revision,
@@ -38,44 +49,33 @@ module EcsDeploy
       }
       if res.services.empty?
         service_options.merge!({
-          service_name: @service_name,
+          service_name:  @service_name,
           desired_count: @desired_count.to_i,
         })
+
         if @load_balancers && !@load_balancers.empty?
           service_options.merge!({
-            role: EcsDeploy.config.ecs_service_role,
-            load_balancers: @load_balancers
+            role: @service_role || default_service_role,
+            load_balancers: @load_balancers,
           })
         end
-        @response = @client.create_service(service_options)
-        EcsDeploy.logger.info "create service [#{@service_name}] [#{@region}] [#{Paint['OK', :green]}]"
+
+        @response = client.create_service(service_options)
+        logger.info "create service [#{@service_name}] [#{@region}] [#{Paint['OK', :green]}]"
       else
         service_options.merge!({service: @service_name})
         service_options.merge!({desired_count: @desired_count}) if @desired_count
-        @response = @client.update_service(service_options)
-        EcsDeploy.logger.info "update service [#{@service_name}] [#{@region}] [#{Paint['OK', :green]}]"
-      end
-    end
-
-    def wait_running
-      return if @response.nil?
-
-      service = @response.service
-      deployment = nil
-
-      @client.wait_until(:services_stable, cluster: @cluster, services: [service.service_name]) do |w|
-        w.delay = 10
-
-        w.before_attempt do
-          EcsDeploy.logger.info "wait service stable [#{service.service_name}]"
-        end
+        @response = client.update_service(service_options)
+        logger.info "update service [#{@service_name}] [#{@region}] [#{Paint['OK', :green]}]"
       end
     end
 
     def self.wait_all_running(services)
       services.group_by { |s| [s.cluster, s.region] }.each do |(cl, region), ss|
-        client = Aws::ECS::Client.new(region: region)
+        next if ss.empty?
+        client = ss[0].client
         service_names = ss.map(&:service_name)
+
         client.wait_until(:services_stable, cluster: cl, services: service_names) do |w|
           w.before_attempt do
             EcsDeploy.logger.info "wait service stable [#{service_names.join(", ")}]"

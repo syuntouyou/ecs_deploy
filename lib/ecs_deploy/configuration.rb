@@ -5,12 +5,11 @@ module EcsDeploy
       :access_key_id,
       :secret_access_key,
       :default_region,
-      :deploy_wait_timeout,
       :ecs_service_role
+      :max_attempts
 
     def initialize
       @log_level = :info
-      @deploy_wait_timeout = 300
       @ecs_service_role = "ecsServiceRole"
     end
   end
