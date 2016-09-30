@@ -36,7 +36,7 @@ module EcsDeploy
       res.services[0].task_definition
     end
 
-    def default_servcie_role
+    def default_service_role
       EcsDeploy.config.ecs_service_role
     end
 
