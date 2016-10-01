@@ -47,7 +47,7 @@ module EcsDeploy
         task_definition: task_definition_name_with_revision,
         deployment_configuration: @deployment_configuration,
       }
-      if res.services.empty?
+      if res.services.empty? || res.services[0].status != 'ACTIVE'
         service_options.merge!({
           service_name:  @service_name,
           desired_count: @desired_count.to_i,
