@@ -26,17 +26,15 @@ def define_ecs_deploy_task(name)
 
       namespace :deploy do
         desc "deploy with rake run"
-        task :migrate  do
+        task :migrations do
           set :migrate, true
-
-          invoke "#{@name}:run_executions"
           invoke "#{@name}:deploy"
         end
       end
 
-
       desc "Deploy"
       task deploy: ["ecs:configure", :register_task_definition] do
+        invoke "#{@name}:run_executions"
         region_strategy.deploy
       end
 
