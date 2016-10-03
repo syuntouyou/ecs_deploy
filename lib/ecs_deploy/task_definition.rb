@@ -174,8 +174,13 @@ module EcsDeploy
         task_arns = resp.tasks.map { |t| t.task_arn }
 
         options = { cluster: info[:cluster], tasks: task_arns }
+
         begin
           wait_until(:tasks_running, options)
+        rescue  Aws::Waiters::Errors::FailureStateError => e
+        end
+
+        begin
           wait_until(:tasks_stopped, options)
         rescue  Aws::Waiters::Errors::FailureStateError => e
           failed = e

@@ -33,8 +33,9 @@ def define_ecs_deploy_task(name)
       end
 
       desc "Deploy"
-      task deploy: ["ecs:configure", :register_task_definition] do
+      task deploy: ["ecs:configure"] do
         invoke "#{@name}:run_executions"
+        invoke "#{@name}:register_task_definition"
         region_strategy.deploy
       end
 
