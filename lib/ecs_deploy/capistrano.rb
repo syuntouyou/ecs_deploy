@@ -10,8 +10,12 @@ def define_ecs_deploy_task(name)
         @region_strategy ||= ECS::RegionStrategy.new(self,@name)
       end
 
+      task set_revision: ["ecs:configure"]  do
+        region_strategy.set_revision
+      end
+
       desc "Register Task Definition"
-      task register_task_definition: ["ecs:configure"] do
+      task register_task_definition: ["#{name}:set_revision"] do
         region_strategy.register_task_definition
       end
 
@@ -20,7 +24,7 @@ def define_ecs_deploy_task(name)
         region_strategy.run
       end
 
-      task register_run_task_definition: ["ecs:configure"] do
+      task register_run_task_definition:  ["#{name}:set_revision"]do
         region_strategy.register_run_task_definition
       end
 
@@ -33,7 +37,7 @@ def define_ecs_deploy_task(name)
       end
 
       desc "Deploy"
-      task deploy: ["ecs:configure"] do
+      task deploy:  ["#{name}:set_revision"] do
         invoke "#{@name}:run_executions"
         invoke "#{@name}:register_task_definition"
         region_strategy.deploy
