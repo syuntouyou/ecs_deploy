@@ -15,7 +15,6 @@ module EcsDeploy
     end
 
     def clean
-
     end
 
 
@@ -62,10 +61,10 @@ module EcsDeploy
       !executions.empty?
     end
 
-    def wait_until(waiter_name,options={})
+    def wait_until(waiter_name,options={},waiter_options={})
       client.wait_until(waiter_name, options) do |w|
-        w.before_wait do |attemptss, response|
-        end
+        w.delay        = waiter_options[:delay]        if waiter_options[:delay]
+        w.max_attempts = waiter_options[:max_attempts] if waiter_options[:max_attempts]
       end
     end
 
@@ -172,11 +171,13 @@ module EcsDeploy
       failed = false
       unless wait_targets.empty?
         task_arns = resp.tasks.map { |t| t.task_arn }
-
         options = { cluster: info[:cluster], tasks: task_arns }
+        run_waiter_options = Hash(info[:waiter_options]
+        default_waiter_options = fetch(:run_task_waiter_options) || {}
+        waiter_options = default_waiter_options.merge(run_waiter_options)
 
         begin
-          wait_until(:tasks_running, options)
+          wait_until(:tasks_running, options,waiter_options)
         rescue  Aws::Waiters::Errors::FailureStateError => e
         end
 

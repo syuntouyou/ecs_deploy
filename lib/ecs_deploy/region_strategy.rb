@@ -35,7 +35,7 @@ module ECS
     end
 
     def set_revision
-      if named_fetch(:sha1) && named_fetch(:repo_url)
+      if named_fetch(:sha1).empty? && named_fetch(:repo_url)
         git_command = "git ls-remote #{named_fetch(:repo_url)} #{named_fetch(:branch)}"
         logger.info git_command
         result = `#{git_command}`
