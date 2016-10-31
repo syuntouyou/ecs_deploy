@@ -172,17 +172,17 @@ module EcsDeploy
       unless wait_targets.empty?
         task_arns = resp.tasks.map { |t| t.task_arn }
         options = { cluster: info[:cluster], tasks: task_arns }
-        run_waiter_options = Hash(info[:waiter_options]
+        run_waiter_options = Hash(info[:waiter_options])
         default_waiter_options = fetch(:run_task_waiter_options) || {}
         waiter_options = default_waiter_options.merge(run_waiter_options)
 
         begin
-          wait_until(:tasks_running, options,waiter_options)
+          wait_until(:tasks_running, options, waiter_options)
         rescue  Aws::Waiters::Errors::FailureStateError => e
         end
 
         begin
-          wait_until(:tasks_stopped, options)
+          wait_until(:tasks_stopped, options, waiter_options)
         rescue  Aws::Waiters::Errors::FailureStateError => e
           failed = e
         end
