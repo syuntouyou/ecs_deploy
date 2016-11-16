@@ -70,13 +70,15 @@ module EcsDeploy
       end
     end
 
-    def self.wait_all_running(services)
+    def self.wait_all_running(services, waiter_options={})
       services.group_by { |s| [s.cluster, s.region] }.each do |(cl, region), ss|
         next if ss.empty?
         client = ss[0].client
         service_names = ss.map(&:service_name)
 
         client.wait_until(:services_stable, cluster: cl, services: service_names) do |w|
+          w.delay        = waiter_options[:delay]        if waiter_options[:delay]
+          w.max_attempts = waiter_options[:max_attempts] if waiter_options[:max_attempts]
           w.before_attempt do
             EcsDeploy.logger.info "wait service stable [#{service_names.join(", ")}]"
           end

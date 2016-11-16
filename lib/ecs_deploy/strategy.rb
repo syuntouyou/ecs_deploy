@@ -74,7 +74,8 @@ module ECS
         service.task_definition_name =  rollback_arn
         service.deploy
       end
-      EcsDeploy::Service.wait_all_running(services)
+      waiter_options = EcsDeploy.config.service_waiter_options
+      EcsDeploy::Service.wait_all_running(services, waiter_options)
       self.deregister_newer_task_definision
     end
 
@@ -134,7 +135,8 @@ module ECS
       self.services.each do |service|
         service.deploy
       end
-      EcsDeploy::Service.wait_all_running(services)
+      waiter_options = EcsDeploy.config.service_waiter_options
+      EcsDeploy::Service.wait_all_running(services, waiter_options)
     end
 
     def run
