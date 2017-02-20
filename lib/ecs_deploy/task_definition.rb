@@ -24,6 +24,7 @@ module EcsDeploy
       network_mode: nil,
       volumes: [], container_definitions: [],
       task_role_arn: nil,
+      placement_constraints:[],
       executions: []
     )
       @task_definition_name = task_definition_name
@@ -31,6 +32,7 @@ module EcsDeploy
       @network_mode         = network_mode
       @region               = region
       @executions           = executions
+      @placement_constraints = placement_constraints
 
       @container_definitions = container_definitions.map do |cd|
         if cd[:docker_labels]
@@ -110,6 +112,7 @@ module EcsDeploy
         volumes: @volumes,
         task_role_arn: @task_role_arn,
         network_mode: @network_mode,
+        placement_constraints: @placement_constraints,
       })
       logger.info "register task definition [#{@task_definition_name}] [#{@region}] [#{Paint['OK', :green]}]"
       @registered = true
@@ -152,15 +155,20 @@ module EcsDeploy
     end
 
     def run(info)
-      resp = client.run_task({
+      run_task_options = {
         cluster:         info[:cluster],
         task_definition: @task_definition_name,
         overrides: {
           container_overrides: info[:container_overrides] || []
         },
+        placement_constraints: info[:placement_constraints] || [],
+        placement_strategy: info[:placement_strategy] || [],
         count:       info[:count] || 1,
         started_by: "capistrano",
-      })
+      }
+
+      resp = client.run_task(run_task_options)
+
       unless resp.failures.empty?
         resp.failures.each do |f|
           raise "#{f.arn}: #{f.reason}"

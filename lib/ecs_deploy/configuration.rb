@@ -6,7 +6,11 @@ module EcsDeploy
       :secret_access_key,
       :default_region,
       :ecs_service_role,
-      :service_waiter_options
+      :service_waiter_options,
+      :use_assume_role,
+      :assume_role_arn,
+      :assume_role_session_name,
+      :assume_role_mfa_serial
 
     def initialize
       @log_level = :info
