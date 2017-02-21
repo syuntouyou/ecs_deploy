@@ -29,6 +29,7 @@ module ECS
           network_mode:          t[:network_mode],
           volumes:               t[:volumes],
           executions:            t[:executions],
+          placement_constraints: t[:placement_constraints],
         )
         task_definitions << task_definition
       end
@@ -116,13 +117,15 @@ module ECS
         next unless is_target_task_definition_name?(service[:task_definition_name])
 
         service_options = {
-          region:               region,
-          cluster:              service[:cluster] || default_cluster,
-          service_name:         service[:name],
-          service_role:         service[:service_role],
-          task_definition_name: service[:task_definition_name],
-          load_balancers:       service[:load_balancers],
-          desired_count:        service[:desired_count],
+          region:                region,
+          cluster:               service[:cluster] || default_cluster,
+          service_name:          service[:name],
+          service_role:          service[:service_role],
+          task_definition_name:  service[:task_definition_name],
+          load_balancers:        service[:load_balancers],
+          desired_count:         service[:desired_count],
+          placement_constraints: service[:placement_constraints],
+          placement_strategy:    service[:placement_strategy],
         }
 
         service_options[:deployment_configuration] = service[:deployment_configuration] if service[:deployment_configuration]
