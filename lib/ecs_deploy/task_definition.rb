@@ -1,7 +1,8 @@
 module EcsDeploy
   class TaskDefinition
 
-    attr_reader :task_definition_name,:task_role_arn
+    attr_reader :task_definition_name,:task_role_arn,:revision
+
     def self.deregister(arn, region)
       client = Aws::ECS::Client.new(region: region)
       client.deregister_task_definition({
@@ -16,7 +17,6 @@ module EcsDeploy
 
     def clean
     end
-
 
     def initialize(
       task_definition_name:,
@@ -106,7 +106,7 @@ module EcsDeploy
     end
 
     def register
-      client.register_task_definition({
+      response = client.register_task_definition({
         family: @task_definition_name,
         container_definitions: @container_definitions,
         volumes: @volumes,
@@ -114,7 +114,9 @@ module EcsDeploy
         network_mode: @network_mode,
         placement_constraints: @placement_constraints,
       })
-      logger.info "register task definition [#{@task_definition_name}] [#{@region}] [#{Paint['OK', :green]}]"
+      @revision = response.task_definition.revision
+      @registered_task_definition = "#{response.task_definition.family}:#{@revision}"
+      logger.info "register task definition [#{@registered_task_definition}] [#{@region}] [#{Paint['OK', :green]}]"
       @registered = true
     end
 
@@ -154,10 +156,15 @@ module EcsDeploy
       logger.warn("#{stream} does not exixs.")
     end
 
+    def current_task_definition
+      @registered_task_definition || @task_definition_name
+    end
+
+
     def run(info)
       run_task_options = {
         cluster:         info[:cluster],
-        task_definition: @task_definition_name,
+        task_definition: current_task_definition,
         overrides: {
           container_overrides: info[:container_overrides] || []
         },
@@ -206,9 +213,9 @@ module EcsDeploy
 
             unless c.exit_code && c.exit_code.zero?
               if c.reason
-                raise "Conatiner (\"#{c.name}\" container in \"#{@task_definition_name}\" task) has errors: #{c.reason}"
+                raise "Conatiner (\"#{c.name}\" container in \"#{current_task_definition}\" task) has errors: #{c.reason}"
               else
-                raise "Conatiner (\"#{c.name}\" container in \"#{@task_definition_name}\" task) has errors: Exit: #{c.exit_code}"
+                raise "Conatiner (\"#{c.name}\" container in \"#{current_task_definition}\" task) has errors: Exit: #{c.exit_code}"
               end
             end
           end

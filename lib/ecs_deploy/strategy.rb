@@ -17,8 +17,8 @@ module ECS
     end
 
     def task_definitions
-      return [] unless fetch(:tasks)
       return  @task_definitions if @task_definitions
+      return [] unless fetch(:tasks)
       task_definitions = []
       fetch(:tasks).map do |t|
         task_definition = EcsDeploy::TaskDefinition.new(
@@ -41,6 +41,10 @@ module ECS
          return false unless fetch(:target_cluster).include?(cluster)
       end
       true
+    end
+
+    def get_task_definition_for(task_definition_name)
+      task_definitions.find{|t| t.task_definition_name == task_definition_name}
     end
 
     def is_target_task_definition_name?(task_definition_name)
@@ -92,7 +96,6 @@ module ECS
       task_definition.newer_task_definition_arns(current_task_definition_arn)
     end
 
-
     def deregister_newer_task_definision
       services.each do |service|
         current_task_definition_arn = service.current_task_definition_arn
@@ -130,6 +133,7 @@ module ECS
 
         service_options[:deployment_configuration] = service[:deployment_configuration] if service[:deployment_configuration]
         s = EcsDeploy::Service.new(service_options)
+        s.task_definition = get_task_definition_for(service[:task_definition_name])
         s
       end.compact
     end
