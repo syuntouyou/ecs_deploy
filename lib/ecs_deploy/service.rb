@@ -108,7 +108,7 @@ module EcsDeploy
             to_time = Time.now
             describe_events(client,cl,service_names,created_at,to_time).each do |name,events|
               events.reverse.each do |event|
-                EcsDeploy.logger.info "[#{name}] #{event.message}"
+                EcsDeploy.logger.info "#{event.message}"
               end
             end
             created_at = to_time
