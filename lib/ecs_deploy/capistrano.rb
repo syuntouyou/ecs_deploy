@@ -36,11 +36,18 @@ def define_ecs_deploy_task(name)
         end
       end
 
+      desc "Status"
+      task :status  do
+        region_strategy.display_service_status
+      end
+
+
       desc "Deploy"
       task deploy:  ["#{name}:set_revision"] do
         invoke "#{@name}:run_executions"
         invoke "#{@name}:register_task_definition"
         region_strategy.deploy
+        invoke "#{@name}:status"
       end
 
       desc "Rollback"

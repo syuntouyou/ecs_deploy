@@ -146,6 +146,10 @@ module ECS
       EcsDeploy::Service.wait_all_running(services, waiter_options)
     end
 
+    def display_service_status
+      EcsDeploy::Service.display_services(services)
+    end
+
     def run
       task_definitions.each do |task_definition|
         task_definition.executions.each do |exec|

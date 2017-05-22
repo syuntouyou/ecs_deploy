@@ -58,6 +58,11 @@ module ECS
       end
     end
 
+    def display_service_status
+      regions.each do |region|
+        strategy_for(region).display_service_status
+      end
+    end
     def deploy
       regions.each do |region|
         strategy_for(region).deploy

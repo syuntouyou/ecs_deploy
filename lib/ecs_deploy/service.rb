@@ -77,6 +77,35 @@ module EcsDeploy
       end
     end
 
+    def self.display_services(services)
+      events = {}
+      message = sprintf("| %-30s |%-15s| %-30s | %10s","Name","Running/Desired","TaskDefinition","Deploying")
+      EcsDeploy.logger.info message
+      message = "-" * 100
+      EcsDeploy.logger.info message
+      services.group_by { |s| [s.cluster, s.region] }.each do |(cluster, region), ss|
+        next if ss.empty?
+        client = ss[0].client
+        service_names = ss.map(&:service_name)
+
+        res = client.describe_services(cluster: cluster, services: service_names)
+        res.services.each do |service|
+          # TODO
+          # - get revision from task_definition
+          # - Get metrics
+          task_definition = service.task_definition.sub(/\Aarn:aws.*\:task-definition\//,"")
+          name = service.service_name
+          counts = sprintf("%5s / %-5s",service.running_count, service.desired_count)
+          deploy = service.deployments.size > 1 ? "Yes" : "No"
+          message = sprintf("| %-30s | %13s | %-30s | %10s",name,counts,task_definition,deploy)
+          EcsDeploy.logger.info message
+        end
+      end
+      message = "-" * 100
+      EcsDeploy.logger.info message
+    end
+
+
     def self.describe_events(client,cluster,service_names,from=Time.now, to_time=nil)
       events = {}
       return events if service_names.empty?
