@@ -181,6 +181,7 @@ module EcsDeploy
           raise "#{f.arn}: #{f.reason}"
         end
       end
+      logger.info "started run task [#{@task_definition_name} #{info.inspect}] [#{@region}] [#{Paint['OK', :green]}]"
 
       wait_targets = Array(info[:wait_stop])
       failed = false
@@ -226,7 +227,7 @@ module EcsDeploy
         raise e
       end
 
-      logger.info "run task [#{@task_definition_name} #{info.inspect}] [#{@region}] [#{Paint['OK', :green]}]"
+      logger.info "ended run task [#{@task_definition_name} #{info.inspect}] [#{@region}] [#{Paint['OK', :green]}]"
     end
   end
 end

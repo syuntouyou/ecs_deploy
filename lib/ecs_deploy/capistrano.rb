@@ -37,7 +37,7 @@ def define_ecs_deploy_task(name)
       end
 
       desc "Status"
-      task :status  do
+      task :status,["ecs:configure"]  do
         region_strategy.display_service_status
       end
 
