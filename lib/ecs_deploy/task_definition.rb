@@ -36,6 +36,9 @@ module EcsDeploy
       @region               = region
       @executions           = executions
       @placement_constraints = placement_constraints
+      @execution_role_arn = execution_role_arn
+      @cpu = cpu
+      @memory = memory
 
       @container_definitions = container_definitions.map do |cd|
         if cd[:docker_labels]
