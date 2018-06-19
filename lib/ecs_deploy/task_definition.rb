@@ -28,7 +28,7 @@ module EcsDeploy
       executions: [],
       execution_role_arn: nil,
       cpu: nil,
-      memory: nil,
+      memory: nil
     )
       @task_definition_name = task_definition_name
       @task_role_arn        = task_role_arn
