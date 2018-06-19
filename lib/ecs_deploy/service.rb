@@ -8,7 +8,8 @@ module EcsDeploy
       cluster:, name:, task_definition_name: nil, revision: nil,load_balancers: [],
       desired_count: nil, deployment_configuration: {maximum_percent: 200, minimum_healthy_percent: 100},
       region: nil, service_role:, placement_constraints: [], placement_strategy: [],
-      health_check_grace_period_seconds:
+      health_check_grace_period_seconds: nil,
+      force_new_deployment: nil
     )
       @cluster = cluster
       @service_role = service_role
