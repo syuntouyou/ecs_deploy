@@ -125,7 +125,7 @@ module ECS
         service_options = {
           region:                region,
           cluster:               service[:cluster] || default_cluster,
-          service_name:          service[:name],
+          name:                  service[:name],
           service_role:          service[:service_role],
           task_definition_name:  service[:task_definition_name],
           load_balancers:        service[:load_balancers],
