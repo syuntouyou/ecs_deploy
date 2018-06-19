@@ -30,6 +30,9 @@ module ECS
           volumes:               t[:volumes],
           executions:            t[:executions],
           placement_constraints: t[:placement_constraints],
+          execution_role_arn:    t[:execution_role_arn],
+          cpu:                   t[:cpu],
+          memory:                t[:memory],
         )
         task_definitions << task_definition
       end
@@ -129,6 +132,8 @@ module ECS
           desired_count:         service[:desired_count],
           placement_constraints: service[:placement_constraints],
           placement_strategy:    service[:placement_strategy],
+          force_new_deployment:  service[:force_new_deployment],
+          health_check_grace_period_seconds: service[:health_check_grace_period_seconds],
         }
 
         service_options[:deployment_configuration] = service[:deployment_configuration] if service[:deployment_configuration]

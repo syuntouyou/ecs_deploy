@@ -25,7 +25,10 @@ module EcsDeploy
       volumes: [], container_definitions: [],
       task_role_arn: nil,
       placement_constraints:[],
-      executions: []
+      executions: [],
+      execution_role_arn: nil,
+      cpu: nil,
+      memory: nil,
     )
       @task_definition_name = task_definition_name
       @task_role_arn        = task_role_arn
@@ -113,6 +116,9 @@ module EcsDeploy
         task_role_arn: @task_role_arn,
         network_mode: @network_mode,
         placement_constraints: @placement_constraints,
+        execution_role_arn: @execution_role_arn,
+        cpu: @cpu,
+        memory: @memory,
       })
       @revision = response.task_definition.revision
       @registered_task_definition = "#{response.task_definition.family}:#{@revision}"

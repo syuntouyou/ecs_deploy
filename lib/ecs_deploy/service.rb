@@ -2,17 +2,17 @@ require 'timeout'
 
 module EcsDeploy
   class Service
-    attr_accessor :cluster, :region, :service_name,:task_definition_name,:revision, :task_definition
+    attr_accessor :cluster, :region, :name,:task_definition_name,:revision, :task_definition
 
     def initialize(
-      cluster:, service_name:, task_definition_name: nil, revision: nil,load_balancers: [],
+      cluster:, name:, task_definition_name: nil, revision: nil,load_balancers: [],
       desired_count: nil, deployment_configuration: {maximum_percent: 200, minimum_healthy_percent: 100},
-      region: nil,service_role:,placement_constraints: [],placement_strategy: []
+      region: nil,service_role:,placement_constraints: [],placement_strategy: [],healthCheckGracePeriodSeconds:
     )
       @cluster = cluster
-      @service_roel = service_role
-      @service_name = service_name
-      @task_definition_name = task_definition_name || service_name
+      @service_role = service_role
+      @name = name
+      @task_definition_name = task_definition_name || name
       @desired_count = desired_count
       @placement_constraints = placement_constraints
       @placement_strategy = placement_strategy
@@ -22,7 +22,7 @@ module EcsDeploy
       @load_balancers = load_balancers
       @region = region
       @response = nil
-
+      @healthCheckGracePeriodSeconds = healthCheckGracePeriodSeconds
     end
 
     def client
@@ -34,7 +34,7 @@ module EcsDeploy
     end
 
     def current_task_definition_arn
-      res = client.describe_services(cluster: @cluster, services: [@service_name])
+      res = client.describe_services(cluster: @cluster, services: [name])
       res.services[0].task_definition
     end
 
@@ -43,37 +43,43 @@ module EcsDeploy
     end
 
     def deploy
-      res = client.describe_services(cluster: @cluster, services: [@service_name])
+      res = client.describe_services(cluster: @cluster, services: [name])
       definition = task_definition_name_with_revision
+
       service_options = {
         cluster: @cluster,
         task_definition: definition,
         deployment_configuration: @deployment_configuration,
       }
+
       if res.services.empty? || res.services[0].status != 'ACTIVE'
         service_options.merge!({
-          service_name:  @service_name,
+          service_name:  name,
           desired_count: @desired_count.to_i,
           placement_constraints: @placement_constraints,
           placement_strategy: @placement_strategy,
         })
 
         if @load_balancers && !@load_balancers.empty?
+
           service_options.merge!({
             role: @service_role || default_service_role,
             load_balancers: @load_balancers,
           })
+
+          service_options[:healthCheckGracePeriodSeconds] = @healthCheckGracePeriodSeconds if @healthCheckGracePeriodSeconds
         end
 
         @response = client.create_service(service_options)
-        logger.info "create service [#{@service_name}] to [#{definition}] [#{@region}] [#{Paint['OK', :green]}]"
+        logger.info "create service [#{name}] to [#{definition}] [#{@region}] [#{Paint['OK', :green]}]"
       else
         current_task_definition = res.services[0].task_definition
         current_task_definition = current_task_definition.sub(/\Aarn:aws.*\:task-definition\//,"")
-        service_options.merge!({service: @service_name})
-        service_options.merge!({desired_count: @desired_count}) if @desired_count
+        service_options[:service] = name
+        service_options[:desired_count]= @desired_count if @desired_count
+        service_options[:healthCheckGracePeriodSeconds] = @healthCheckGracePeriodSeconds if @healthCheckGracePeriodSeconds
         @response = client.update_service(service_options)
-        logger.info "update service [#{@service_name}] from [#{current_task_definition}] to [#{definition}] [#{@region}] [#{Paint['OK', :green]}]"
+        logger.info "update service [#{name}] from [#{current_task_definition}] to [#{definition}] [#{@region}] [#{Paint['OK', :green]}]"
       end
     end
 
