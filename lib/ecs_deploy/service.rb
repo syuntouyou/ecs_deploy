@@ -102,7 +102,7 @@ module EcsDeploy
           # - get revision from task_definition
           # - Get metrics
           task_definition = service.task_definition.sub(/\Aarn:aws.*\:task-definition\//,"")
-          name = service.name
+          name = service.service_name
           counts = sprintf("%5s / %-5s",service.running_count, service.desired_count)
           deploy = service.deployments.size > 1 ? "Yes" : "No"
           message = sprintf("| %-30s | %13s | %-30s | %10s",name,counts,task_definition,deploy)
@@ -119,7 +119,7 @@ module EcsDeploy
       return events if service_names.empty?
       res = client.describe_services(cluster: cluster, services: service_names)
       res.services.each do |service|
-        name = service.name
+        name = service.service_name
         events[name] = []
         service.events.each  do |event|
           next if event.created_at < from
