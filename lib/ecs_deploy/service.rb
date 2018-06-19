@@ -94,7 +94,7 @@ module EcsDeploy
       services.group_by { |s| [s.cluster, s.region] }.each do |(cluster, region), ss|
         next if ss.empty?
         client = ss[0].client
-        service_names = ss.map(&:service_name)
+        service_names = ss.map(&:name)
 
         res = client.describe_services(cluster: cluster, services: service_names)
         res.services.each do |service|
@@ -102,7 +102,7 @@ module EcsDeploy
           # - get revision from task_definition
           # - Get metrics
           task_definition = service.task_definition.sub(/\Aarn:aws.*\:task-definition\//,"")
-          name = service.service_name
+          name = service.name
           counts = sprintf("%5s / %-5s",service.running_count, service.desired_count)
           deploy = service.deployments.size > 1 ? "Yes" : "No"
           message = sprintf("| %-30s | %13s | %-30s | %10s",name,counts,task_definition,deploy)
@@ -114,12 +114,12 @@ module EcsDeploy
     end
 
 
-    def self.describe_events(client,cluster,service_names,from=Time.now, to_time=nil)
+    def self.describe_events(client,cluster, service_names, from=Time.now, to_time=nil)
       events = {}
       return events if service_names.empty?
       res = client.describe_services(cluster: cluster, services: service_names)
       res.services.each do |service|
-        name = service.service_name
+        name = service.name
         events[name] = []
         service.events.each  do |event|
           next if event.created_at < from
@@ -135,7 +135,7 @@ module EcsDeploy
       services.group_by { |s| [s.cluster, s.region] }.each do |(cl, region), ss|
         next if ss.empty?
         client = ss[0].client
-        service_names = ss.map(&:service_name)
+        service_names = ss.map(&:name)
 
         EcsDeploy.logger.info "wait service stable [#{service_names.join(", ")}]"
         client.wait_until(:services_stable, cluster: cl, services: service_names) do |w|
@@ -143,7 +143,7 @@ module EcsDeploy
           w.max_attempts = waiter_options[:max_attempts] if waiter_options[:max_attempts]
           w.before_attempt do
             to_time = Time.now
-            describe_events(client,cl,service_names,created_at,to_time).each do |name,events|
+            describe_events(client,cl, service_names, created_at,to_time).each do |name,events|
               events.reverse.each do |event|
                 EcsDeploy.logger.info "#{event.message}"
               end
