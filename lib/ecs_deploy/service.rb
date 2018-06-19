@@ -7,7 +7,8 @@ module EcsDeploy
     def initialize(
       cluster:, name:, task_definition_name: nil, revision: nil,load_balancers: [],
       desired_count: nil, deployment_configuration: {maximum_percent: 200, minimum_healthy_percent: 100},
-      region: nil,service_role:,placement_constraints: [],placement_strategy: [],healthCheckGracePeriodSeconds:
+      region: nil, service_role:, placement_constraints: [], placement_strategy: [],
+      health_check_grace_period_seconds:
     )
       @cluster = cluster
       @service_role = service_role
@@ -22,7 +23,7 @@ module EcsDeploy
       @load_balancers = load_balancers
       @region = region
       @response = nil
-      @healthCheckGracePeriodSeconds = healthCheckGracePeriodSeconds
+      @health_check_grace_period_seconds = health_check_grace_period_seconds
     end
 
     def client
@@ -67,7 +68,7 @@ module EcsDeploy
             load_balancers: @load_balancers,
           })
 
-          service_options[:healthCheckGracePeriodSeconds] = @healthCheckGracePeriodSeconds if @healthCheckGracePeriodSeconds
+          service_options[:health_check_grace_period_seconds] = @health_check_grace_period_seconds if @health_check_grace_period_seconds
         end
 
         @response = client.create_service(service_options)
@@ -77,7 +78,7 @@ module EcsDeploy
         current_task_definition = current_task_definition.sub(/\Aarn:aws.*\:task-definition\//,"")
         service_options[:service] = name
         service_options[:desired_count]= @desired_count if @desired_count
-        service_options[:healthCheckGracePeriodSeconds] = @healthCheckGracePeriodSeconds if @healthCheckGracePeriodSeconds
+        service_options[:health_check_grace_period_seconds] = @health_check_grace_period_seconds if @health_check_grace_period_seconds
         @response = client.update_service(service_options)
         logger.info "update service [#{name}] from [#{current_task_definition}] to [#{definition}] [#{@region}] [#{Paint['OK', :green]}]"
       end
