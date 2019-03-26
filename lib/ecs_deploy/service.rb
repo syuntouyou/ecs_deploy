@@ -7,7 +7,7 @@ module EcsDeploy
     def initialize(
       cluster:, name:, task_definition_name: nil, revision: nil,load_balancers: [],
       desired_count: nil, deployment_configuration: {maximum_percent: 200, minimum_healthy_percent: 100},
-      region: nil, service_role:, placement_constraints: [], placement_strategy: [],
+      region: nil, service_role:, launch_type: nil, placement_constraints: [], placement_strategy: [],
       health_check_grace_period_seconds: nil,
       force_new_deployment: nil
     )
@@ -16,6 +16,7 @@ module EcsDeploy
       @name = name
       @task_definition_name = task_definition_name || name
       @desired_count = desired_count
+      @launch_type = launch_type
       @placement_constraints = placement_constraints
       @placement_strategy = placement_strategy
       @deployment_configuration = deployment_configuration
@@ -58,6 +59,7 @@ module EcsDeploy
         service_options.merge!({
           service_name:  name,
           desired_count: @desired_count.to_i,
+          launch_type: @launch_type,
           placement_constraints: @placement_constraints,
           placement_strategy: @placement_strategy,
         })

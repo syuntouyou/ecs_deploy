@@ -26,6 +26,7 @@ module EcsDeploy
       task_role_arn: nil,
       placement_constraints:[],
       executions: [],
+      requires_compatibilities: nil,
       execution_role_arn: nil,
       cpu: nil,
       memory: nil
@@ -36,6 +37,7 @@ module EcsDeploy
       @region               = region
       @executions           = executions
       @placement_constraints = placement_constraints
+      @requires_compatibilities = requires_compatibilities
       @execution_role_arn = execution_role_arn
       @cpu = cpu
       @memory = memory
@@ -119,6 +121,7 @@ module EcsDeploy
         task_role_arn: @task_role_arn,
         network_mode: @network_mode,
         placement_constraints: @placement_constraints,
+        requires_compatibilities: @requires_compatibilities,
         execution_role_arn: @execution_role_arn,
         cpu: @cpu,
         memory: @memory,
