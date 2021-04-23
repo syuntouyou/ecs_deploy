@@ -139,7 +139,7 @@ module ECS
         }
 
         service_options[:deployment_configuration] = service[:deployment_configuration] if service[:deployment_configuration]
-        s = EcsDeploy::Service.new(service_options)
+        s = EcsDeploy::Service.new(**service_options)
         s.task_definition = get_task_definition_for(service[:task_definition_name])
         s
       end.compact
